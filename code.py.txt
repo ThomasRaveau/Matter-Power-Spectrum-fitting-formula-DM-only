@@ -1,0 +1,42 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jul  6 16:14:12 2025
+
+@author: Thomas RAVEAU
+"""
+
+import numpy as np
+from scipy.interpolate import LinearNDInterpolator
+
+
+data = np.load('emulator_data.npz')
+
+k_vals = data['k_vals']
+mu = data['mu']
+phi = data['phi']
+grid_points = data['grid_points']
+grid_weights = data['grid_weights']
+
+
+interpolators = []
+for j in range(4):
+    interpolators.append(LinearNDInterpolator(grid_points, grid_weights[:, j]))
+
+def P(k, z, alpha, beta):
+
+    pt = np.array([[z, alpha, beta]])
+    w = np.array([interpolators[j](pt)[0] for j in range(4)])
+    w = np.nan_to_num(w, nan=np.mean(grid_weights, axis=0))
+    
+    lnk = np.log(k)
+    ln_Delta2 = mu + w[0]*phi[0] + w[1]*phi[1] + w[2]*phi[2] + w[3]*phi[3]
+    ln_Delta2_k = np.interp(lnk, np.log(k_vals), ln_Delta2)
+    
+    return np.exp(ln_Delta2_k) / (k ** 2)
+
+k=np.logspace(-1,2,2000)
+z=0
+alpha=0.015
+beta=0.018
+
+matter_power_spectrum = P(k, z, alpha, beta)
